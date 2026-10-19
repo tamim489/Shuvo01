@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tamim Technology</title>
+
+<style>
+body{
+font-family:Arial, sans-serif;
+background:#f0f2f5;
+margin:0;
+padding:20px;
+display:flex;
+justify-content:center;
+align-items:center;
+min-height:100vh;
+}
+.container{
+background:#fff;
+padding:25px;
+border-radius:10px;
+box-shadow:0 4px 8px rgba(0,0,0,.1);
+text-align:center;
+max-width:400px;
+width:100%;
+}
+.stats{
+display:flex;
+justify-content:center;
+margin-bottom:20px;
+background:#e9ecef;
+padding:15px;
+border-radius:8px;
+}
+.stat-value{
+font-size:1.5em;
+font-weight:bold;
+color:#28a745;
+}
+.button-group{
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+button{
+background:#007bff;
+color:#fff;
+border:none;
+padding:15px;
+border-radius:5px;
+cursor:pointer;
+font-size: 1em;
+}
+button:disabled{
+opacity:.6;
+cursor:not-allowed;
+}
+.withdraw-btn{
+background:#28a745;
+}
+.modal{
+display:none;
+position:fixed;
+z-index:1;
+left:0;
+top:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.5);
+}
+.modal-content{
+background:#fff;
+margin:15% auto;
+padding:20px;
+width:80%;
+max-width:500px;
+border-radius:10px;
+position: relative;
+}
+.close{
+float:right;
+font-size:28px;
+cursor:pointer;
+}
+input{
+width:calc(100% - 22px);
+padding:10px;
+margin:10px 0;
+border:1px solid #ccc;
+border-radius:5px;
+}
+</style>
+
+<!-- Adsparks SDK -->
+<script src="https://adspark-tma.top/api/public/sdk.js?k="></script>
+
+</head>
+<body>
+
+<div class="container">
+<h2>Telegram Mini Self Earning App</h2>
+
+<div class="stats">
+<div>
+<div id="earned-points" class="stat-value">0</div>
+<div>Total Points</div>
+</div>
+</div>
+
+<div class="button-group">
+<!-- এখানে id="watch" দেওয়া হয়েছে যা আপনার দেওয়া কোডের সাথে মিলে -->
+<button id="watch">Watch Reward Ad</button>
+<button class="withdraw-btn" onclick="openWithdrawModal()">Withdraw</button>
+</div>
+</div>
+
+<div id="withdrawModal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeWithdrawModal()">&times;</span>
+<h2>Withdraw Points</h2>
+<form id="withdrawForm">
+<input type="text" id="referName" placeholder="Enter Refer Name" required>
+<input type="number" id="pointsToWithdraw" placeholder="Enter Points to Withdraw" required>
+<button type="submit">Send Withdraw Request</button>
+</form>
+</div>
+</div>
+
+<script>
+let adsWatched = localStorage.getItem('adsWatched') ? parseInt(localStorage.getItem('adsWatched')) : 0;
+let earnedPoints = localStorage.getItem('earnedPoints') ? parseInt(localStorage.getItem('earnedPoints')) : 0;
+let isProcessing = false;
+
+// Telegram User ID সংগ্রহ করা
+const tg = window.Telegram?.WebApp;
+const userId = tg?.initDataUnsafe?.user?.id || "123456789"; // ব্যাকআপ আইডি যদি টেলিগ্রামের বাইরে ওপেন করা হয়
+
+function updateStats(){
+document.getElementById("earned-points").innerText = earnedPoints;
+localStorage.setItem("earnedPoints", earnedPoints);
+localStorage.setItem("adsWatched", adsWatched);
+}
+
+// আপনার দেওয়া Adsparks এর আসল কোড এখানে বসানো হলো
+document.getElementById("watch").onclick = () => {
+    const btn = document.getElementById("watch");
+    btn.disabled = true;
+    btn.innerText = "Loading Ad...";
+
+    showAdspark({ ymid: userId })
+        .then(() => {
+            // ad completed — give the reward
+            adsWatched++;
+            earnedPoints++;
+            updateStats();
+            alert("✅ Ad watched successfully! Point added.");
+            
+            btn.disabled = false;
+            btn.innerText = "Watch Reward Ad";
+        })
+        .catch(() => {
+            // no ad available for this user right now
+            alert("❌ No ad available for this user right now.");
+            
+            btn.disabled = false;
+            btn.innerText = "Watch Reward Ad";
+        });
+};
+
+// WITHDRAW MODAL LOGIC
+const modal = document.getElementById('withdrawModal');
+
+function openWithdrawModal(){ modal.style.display='block'; }
+function closeWithdrawModal(){ modal.style.display='none'; }
+
+window.onclick = e => { if(e.target==modal) closeWithdrawModal(); };
+
+document.getElementById('withdrawForm').addEventListener('submit', function(e){
+e.preventDefault();
+
+if(isProcessing){ alert("Please wait..."); return; }
+
+const referName = document.getElementById('referName').value;
+const points = parseInt(document.getElementById('pointsToWithdraw').value);
+
+if(points > earnedPoints || points <= 0){
+alert("Invalid amount!");
+return;
+}
+
+isProcessing = true;
+
+earnedPoints -= points;
+updateStats();
+closeWithdrawModal();
+
+alert("✅ Withdraw sent successfully!");
+
+const now = new Date();
+const date = now.toLocaleDateString("en-US",{timeZone:"Asia/Dhaka"});
+const time = now.toLocaleTimeString("en-US",{timeZone:"Asia/Dhaka"});
+
+sendTelegram(referName, points, date, time);
+
+document.getElementById('withdrawForm').reset();
+isProcessing = false;
+});
+
+// TELEGRAM NOTIFICATION
+function sendTelegram(referName, points, date, time){
+const botToken = "8866860072:AAHv-z_kASa_4dyb5tT-4_4fex-_pxOwxRM";
+const adminChatId = "8533151541";
+
+const message = `🚀 New Withdraw Request\nRefer Name: ${referName}\nPoints: ${points}\nDate: ${date}\nTime: ${time}`;
+
+fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+chat_id: adminChatId,
+text: message
+})
+}).catch(err => console.log("Telegram error:", err));
+}
+
+updateStats();
+</script>
+
+</body>
+</html>
